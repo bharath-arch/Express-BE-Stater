@@ -1,109 +1,191 @@
-# Production-Ready Express + Better Auth Backend
 
-This is a production-ready Express.js backend written in TypeScript, featuring Better Auth, Prisma ORM with dynamic database fallback, and API monitoring with Prometheus and Grafana.
+
+
+# 📘 Production-Ready Express + Better Auth Backend
+
+A **production-ready Express.js backend** written in **TypeScript** with:
+
+- **Better Auth** — email/password authentication
+- **Prisma ORM** — PostgreSQL (primary) + SQLite (fallback)
+- **Prometheus + Grafana** monitoring
+- Security best practices (CORS, rate limiting, secure sessions)
 
 ## 🚀 Features
 
-- **Express.js + TypeScript**: Clean, modular architecture.
-- **Better Auth**: Comprehensive authentication (Email/Password, Session/JWT).
-- **Prisma ORM**: Supports PostgreSQL and automatically falls back to SQLite.
-- **Monitoring**: Prometheus metrics exposed at `/api/metrics` and custom Grafana dashboard.
-- **Security**: Rate limiting, CORS, and secure auth defaults.
-
-## 🛠 Tech Stack
-
-- **Framework**: Express.js
-- **Language**: TypeScript
-- **Auth**: Better Auth
-- **ORM**: Prisma
-- **Database**: PostgreSQL (Primary) / SQLite (Fallback)
-- **Monitoring**: prom-client, Prometheus, Grafana
+- Express + TypeScript
+- Better Auth (email & password auth)
+- Prisma ORM with auto-detected provider (PostgreSQL / SQLite)
+- Prometheus metrics endpoint `/api/metrics`
+- Protected routes via middleware
+- Rate limiting
+- Secure CORS configuration
 
 ## 📦 Getting Started
 
-### 1. Installation
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Environment Setup
-
-Create a `.env` file in the root directory:
+### 2. Create `.env` file
 
 ```env
+
 PORT=3000
-DATABASE_URL="file:./dev.db" # Or postgresql://user:password@localhost:5432/db
-BETTER_AUTH_SECRET="your-super-secret-key"
+
+# ────────────────────────────────────────────────
+# Database (choose one)
+DATABASE_URL="file:./dev.db"  #SQLite (development)
+# DATABASE_URL="postgresql://user:pass@localhost:5432/prod_db?schema=public"   #PostgreSQL (production)
+
+# Better Auth
+BETTER_AUTH_SECRET="your-very-long-random-secret-key"
 BETTER_AUTH_URL="http://localhost:3000"
 ```
 
-### 3. Database Migration
-
-The project includes a utility to automatically set the Prisma provider based on your `DATABASE_URL`.
+### 3. Database Setup
 
 ```bash
-# Set provider and generate client
-npx ts-node src/utils/setup-db.ts
+# Generate Prisma client
 npx prisma generate
 
-# Run migrations
-# For SQLite:
+# (Optional but recommended) Auto-configure provider based on DATABASE_URL
+npx ts-node src/utils/setup-db.ts
+
+# Run migrations (creates User, Session, Account... tables)
 npx prisma migrate dev --name init
-# For PostgreSQL:
-# npx prisma migrate dev --name init
 ```
 
-### 4. Running the Server
+### 4. Run the Server
+
+**Development**
 
 ```bash
-# Development mode
 npm run dev
+```
 
-# Production mode
+**Production**
+
+```bash
 npm run build
 npm start
 ```
 
-## 📊 Monitoring (Grafana + Prometheus)
+Server will listen on the port specified in `.env` (default: 3000).
 
-### Prometheus Setup
-Add the following to your `prometheus.yml`:
+## 🔐 Authentication Endpoints (Better Auth)
+
+All auth routes live under `/api/auth/`
+
+| Action          | Method | Path                        | Description             |
+|-----------------|--------|-----------------------------|--------------------------|
+| Register        | POST   | `/api/auth/sign-up/email`   | Create new user          |
+| Login           | POST   | `/api/auth/sign-in/email`   | Sign in                  |
+| Logout          | POST   | `/api/auth/sign-out`        | End session              |
+| Check session   | GET    | `/api/auth/ok`              | Returns 200 if authenticated |
+
+### Example Requests
+
+**Sign Up**
+
+```http
+POST http://localhost:3000/api/auth/sign-up/email
+Content-Type: application/json
+Origin: http://localhost:5173
+
+{
+  "name": "Alice Example",
+  "email": "alice@example.com",
+  "password": "securePassword123"
+}
+```
+
+**Sign In**
+
+```http
+POST http://localhost:3000/api/auth/sign-in/email
+Content-Type: application/json
+Origin: http://localhost:5173
+
+{
+  "email": "alice@example.com",
+  "password": "securePassword123"
+}
+```
+
+**Sign Out**
+
+```http
+POST http://localhost:3000/api/auth/sign-out
+```
+
+**Check Session**
+
+```http
+GET http://localhost:3000/api/auth/ok
+```
+
+## 🛡️ Protected Routes Example
+
+```ts
+// Example protected route
+app.get('/api/protected', authMiddleware, (req, res) => {
+  res.json({
+    message: "This is protected",
+    user: req.user,
+    session: req.session
+  });
+});
+```
+
+## 📊 Monitoring (Prometheus + Grafana)
+
+Metrics endpoint: **`GET /api/metrics`**
+
+### Prometheus scrape config example
 
 ```yaml
 scrape_configs:
   - job_name: 'express-backend'
     scrape_interval: 5s
+    metrics_path: '/api/metrics'
     static_configs:
       - targets: ['localhost:3000']
-    metrics_path: '/api/metrics'
 ```
 
-### Grafana Setup
-1. Add Prometheus as a Data Source in Grafana.
-2. Import the `grafana-dashboard.json` file provided in the root directory.
+### Grafana
 
-## 🔐 Authentication Endpoints (Better Auth)
-
-Better Auth endpoints are available under `/api/auth/*`.
-
-- **Register**: `POST /api/auth/sign-up`
-- **Login**: `POST /api/auth/sign-in`
-- **Logout**: `POST /api/auth/sign-out`
-- **Session**: `GET /api/auth/get-session`
-
-### Protected Route Example
-`GET /api/protected` requires a valid session.
+1. Add Prometheus as data source
+2. Import the provided `grafana-dashboard.json` (if you have one)
 
 ## 🗂 Project Structure
 
-```text
-src/
-├── app.ts            # Express application setup
-├── server.ts         # Server entry point
-├── routes/           # API routes
-├── middleware/       # Custom middlewares (auth, metrics)
-├── prisma/           # Prisma client and schema
-├── utils/            # Utility functions (db setup)
-└── config/           # Configuration files (better-auth)
 ```
+src/
+├── app.ts                # Express app setup + middleware
+├── server.ts             # Entry point (starts the server)
+├── routes/               # API route handlers
+├── middleware/           # auth, metrics, rate-limit, etc.
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── utils/
+│   └── setup-db.ts       # Auto-configures Prisma provider
+└── config/
+    └── auth.ts           # Better Auth configuration
+```
+
+## 🛡 Security & Best Practices
+
+- CORS restricted to your frontend origin(s) + credentials support
+- Secure session handling via Better Auth
+- Rate limiting on auth & API routes
+- Prometheus metrics for observability
+- Environment-based database provider (PostgreSQL / SQLite)
+- `BETTER_AUTH_SECRET` should be strong & unique
+
+> **Important reminder**:  
+> Make sure `emailAndPassword: { enabled: true }` is set in your Better Auth config.
+
+Good luck building! 🚀

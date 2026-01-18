@@ -9,5 +9,6 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
     },
+    
     // For JWT/Session support, better-auth handled this with its session management
 });
