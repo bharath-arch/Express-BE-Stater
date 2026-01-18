@@ -33,8 +33,6 @@ npm install
 ```env
 
 PORT=3000
-
-# ────────────────────────────────────────────────
 # Database (choose one)
 DATABASE_URL="file:./dev.db"  #SQLite (development)
 # DATABASE_URL="postgresql://user:pass@localhost:5432/prod_db?schema=public"   #PostgreSQL (production)
